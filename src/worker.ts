@@ -182,6 +182,7 @@ function movieList(movies: Movie[], limit = 10): string {
     .map((movie) =>
       `${movie.title} (${yearFrom(movie.release_date)}) - ID: ${movie.id}\n` +
       `Rating: ${movie.vote_average}/10\n` +
+     `Votes: ${movie.vote_count}\n` +
       `Overview: ${movie.overview}`
     )
     .join("\n---\n");
@@ -844,6 +845,7 @@ function createTMDBServer(env: Env): McpServer {
         genre: z.string().optional().describe("Genre name"),
         year: z.string().optional().describe("Release year"),
         minRating: z.string().optional().describe("Minimum rating from 0 to 10"),
+        minVotes: z.string().optional().describe("Minimum number of TMDB votes"),
         sortBy: z
           .enum([
             "popularity.desc",
@@ -859,7 +861,7 @@ function createTMDBServer(env: Env): McpServer {
       },
       annotations: READ_ONLY_TOOL,
     },
-    async ({ genre, year, minRating, sortBy, language }) => {
+    async ({ genre, year, minRating, minVotes, sortBy, language }) => {
       const params: Record<string, string> = {
         sort_by: sortBy || "popularity.desc",
       };
@@ -877,6 +879,7 @@ function createTMDBServer(env: Env): McpServer {
 
       if (year) params.year = year;
       if (minRating) params["vote_average.gte"] = minRating;
+      if (minVotes) params["vote_count.gte"] = minVotes;
       if (language) params.with_original_language = language;
 
       const data = await fetchFromTMDB<TMDBResponse>(env, "/discover/movie", params);
