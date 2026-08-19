@@ -23,6 +23,7 @@ interface Movie {
   release_date?: string;
   original_language?: string;
   vote_average: number;
+  vote_count: number;
   overview: string;
   runtime?: number;
   genres?: Array<{ id: number; name: string }>;
