@@ -1,0 +1,20 @@
+{
+  "name": "concert-agenda-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server that scrapes Dutch/Belgian metal concert agendas (zwaremetalen.com, metalfan.nl, metalagenda.nl) and exposes them as queryable tools. Built as a companion to the mcp-server-tmdb concierge: TMDB handles films, this handles gigs, so the curator protocol never has to guess whether a source is reachable.",
+  "main": "src/server.js",
+  "bin": {
+    "concert-agenda-mcp": "src/server.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "scrape:test": "node src/cli-scrape.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cheerio": "^1.0.0",
+    "zod": "^4.3.6"
+  }
+}
