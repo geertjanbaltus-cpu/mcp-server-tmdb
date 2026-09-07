@@ -3,8 +3,12 @@ import { monthNumber, toIsoDate } from "../lib/dutch-dates.js";
 
 const SOURCE = "metalagenda";
 
-// "22 september 2026 dinsdag" (day, full Dutch month name, year, weekday)
-const DATE_RE = /^(\d{1,2})\s+([a-zëé]+)\s+(\d{4})\s+\w+$/i;
+// "22 september 2026 dinsdag" (day, full Dutch month name, year, weekday).
+// Deliberately not end-anchored: if a status badge like "uitverkocht" ever
+// ends up glued onto the same block as the date (markup we haven't seen
+// but can't rule out), a strict `$` anchor would silently drop the whole
+// entry instead of just missing the badge.
+const DATE_RE = /^(\d{1,2})\s+([a-zëé]+)\s+(\d{4})\s+\w+/i;
 
 export function parseMetalagendaVenue(html, venue) {
   const lines = extractTextBlocks(html);
@@ -18,7 +22,7 @@ export function parseMetalagendaVenue(html, venue) {
       const year = Number(m[3]);
       let j = i + 1;
 
-      let soldOut = false;
+      let soldOut = lines[i].toLowerCase().includes("uitverkocht");
       if (lines[j] && lines[j].toLowerCase() === "uitverkocht") {
         soldOut = true;
         j++;
