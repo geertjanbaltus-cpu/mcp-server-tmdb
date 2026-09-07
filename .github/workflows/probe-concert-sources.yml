@@ -2,6 +2,9 @@ name: Probe concert sources
 
 on:
   workflow_dispatch: {}
+  push:
+    branches: [claude/cultural-curator-agent-qb7x8o]
+    paths: [.github/workflows/probe-concert-sources.yml]
 
 jobs:
   probe:
