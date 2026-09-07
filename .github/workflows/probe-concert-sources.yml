@@ -26,22 +26,91 @@ jobs:
 
           fetch "https://zwaremetalen.com/concertagenda" "zwaremetalen_agenda.html"
           fetch "https://www.metalfan.nl/agenda.php" "metalfan_agenda.html"
-          fetch "https://metalagenda.nl/" "metalagenda_home.html"
           fetch "https://www.metalagenda.nl/venues/de-helling" "metalagenda_de-helling.html"
-          fetch "https://www.metalagenda.nl/p/utrecht" "metalagenda_utrecht.html"
+          fetch "https://www.metalagenda.nl/venues/neushoorn" "metalagenda_neushoorn.html"
 
-      - name: Summarize
+      - name: Strip tags to readable text (block-per-line)
         run: |
-          for f in raw/*.html; do
-            echo "=== $f ==="
-            wc -c "$f"
-            grep -Eio '20(2[5-9]|3[0-9])' "$f" | sort | uniq -c | head -5 || true
+          mkdir -p text
+          python3 - <<'PY'
+          import re, glob, os
+          from html.parser import HTMLParser
+
+          class TextExtractor(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.skip = 0
+                  self.lines = []
+                  self.buf = ""
+              def handle_starttag(self, tag, attrs):
+                  if tag in ("script", "style", "noscript"):
+                      self.skip += 1
+                  if tag in ("br", "p", "div", "li", "tr", "h1", "h2", "h3", "h4", "td", "article", "section"):
+                      self._flush()
+              def handle_endtag(self, tag):
+                  if tag in ("script", "style", "noscript"):
+                      self.skip = max(0, self.skip - 1)
+                  if tag in ("p", "div", "li", "tr", "h1", "h2", "h3", "h4", "td", "article", "section"):
+                      self._flush()
+              def handle_data(self, data):
+                  if self.skip:
+                      return
+                  self.buf += data
+              def _flush(self):
+                  t = re.sub(r"\s+", " ", self.buf).strip()
+                  if t:
+                      self.lines.append(t)
+                  self.buf = ""
+              def result(self):
+                  self._flush()
+                  return self.lines
+
+          for path in glob.glob("raw/*.html"):
+              with open(path, encoding="utf-8", errors="replace") as f:
+                  html = f.read()
+              p = TextExtractor()
+              p.feed(html)
+              lines = p.result()
+              # dedupe consecutive identical lines
+              out = []
+              for l in lines:
+                  if not out or out[-1] != l:
+                      out.append(l)
+              name = os.path.splitext(os.path.basename(path))[0]
+              with open(f"text/{name}.txt", "w", encoding="utf-8") as f:
+                  f.write("\n".join(out))
+              print(f"{path}: {len(html)} html chars -> {len(out)} text lines")
+          PY
+
+      - name: Print text excerpts
+        run: |
+          for f in text/*.txt; do
+            echo "##### $f (first 250 lines) #####"
+            head -n 250 "$f"
+            echo
+            echo "##### $f (lines matching date-like patterns, first 60) #####"
+            grep -Ei '\b(jan|feb|mrt|maart|apr|mei|jun|jul|aug|sep|okt|nov|dec)[a-z]*\b.{0,20}202[5-9]|202[5-9].{0,20}\b(jan|feb|mrt|maart|apr|mei|jun|jul|aug|sep|okt|nov|dec)' "$f" | head -n 60
             echo
           done
 
-      - name: Upload raw HTML
+      - name: Print raw HTML context around first date hits (for DOM structure)
+        run: |
+          for f in raw/zwaremetalen_agenda.html raw/metalagenda_de-helling.html raw/metalagenda_neushoorn.html; do
+            echo "##### RAW CONTEXT: $f #####"
+            grep -n -m 3 -Ei '202[5-9]' "$f" | head -3 | cut -d: -f1 | while read -r ln; do
+              start=$((ln>15 ? ln-15 : 1))
+              end=$((ln+15))
+              echo "--- lines $start-$end ---"
+              sed -n "${start},${end}p" "$f"
+              echo
+            done
+          done
+
+      - name: Upload raw HTML (backup)
         uses: actions/upload-artifact@v4
         with:
           name: raw-html
-          path: raw/
+          path: |
+            raw/
+            text/
           retention-days: 3
