@@ -1,0 +1,44 @@
+name: Probe concert sources
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch raw pages
+        run: |
+          set -x
+          mkdir -p raw
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+
+          fetch() {
+            url="$1"
+            out="$2"
+            code=$(curl -sS -L -A "$UA" -o "raw/$out" -w "%{http_code}" "$url" || echo "CURLERR")
+            bytes=$(wc -c < "raw/$out" 2>/dev/null || echo 0)
+            echo "RESULT $url -> http=$code bytes=$bytes file=$out"
+          }
+
+          fetch "https://zwaremetalen.com/concertagenda" "zwaremetalen_agenda.html"
+          fetch "https://www.metalfan.nl/agenda.php" "metalfan_agenda.html"
+          fetch "https://metalagenda.nl/" "metalagenda_home.html"
+          fetch "https://www.metalagenda.nl/venues/de-helling" "metalagenda_de-helling.html"
+          fetch "https://www.metalagenda.nl/p/utrecht" "metalagenda_utrecht.html"
+
+      - name: Summarize
+        run: |
+          for f in raw/*.html; do
+            echo "=== $f ==="
+            wc -c "$f"
+            grep -Eio '20(2[5-9]|3[0-9])' "$f" | sort | uniq -c | head -5 || true
+            echo
+          done
+
+      - name: Upload raw HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-html
+          path: raw/
+          retention-days: 3
